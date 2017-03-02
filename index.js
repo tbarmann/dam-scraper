@@ -24,23 +24,22 @@ casper.thenClick(x('//*[@id="tabs"]/div/div/div/div[4]/div/a'));
 casper.thenClick(x('//*[@id="apexir_ACTIONSMENUROOT"]'));
 
 casper.thenClick(x('//*[@id="apexir_ACTIONSMENU"]/li[3]/a'), function() {
-  this.wait(3000, function() {
-    this.evaluate(function(sel) {
-      document.querySelector(sel).value = 'STATE';
-    }, '#apexir_COLUMN_NAME');
-    this.evaluate(function(sel) {
-      document.querySelector(sel).value = '=';
-    }, '#apexir_STRING_OPT');
-    this.evaluate(function(sel) {
-      document.querySelector(sel).value = 'RI';
-    }, '#apexir_EXPR');
+  this.wait(1000, function() {
     this.evaluate(function() {
-      gReport.search('SEARCH',1000);
+      document.querySelector('#apexir_COLUMN_NAME').value = 'STATE';
+      document.querySelector('#apexir_STRING_OPT').value = '=';
+      document.querySelector('#apexir_EXPR').value = 'RI';
     });
   });
 });
 
 casper.thenClick(x('//*[@id="apexir_btn_APPLY"]'));
+
+casper.wait(3000, function() {
+  this.evaluate(function() {
+    gReport.search('SEARCH',100);
+  });
+});
 
 casper.wait(3000, function() {
     this.capture('image.png');
