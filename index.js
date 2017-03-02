@@ -10,6 +10,19 @@ function getLinks() {
     });
 }
 
+function scrapeTable(tableSelector) {
+  var rows = document.querySelectorAll(tableSelector + ' tr');
+  console.log(rows.length);
+
+  for (var i = 0; i<rows.length; i++) {
+    var cols = rows[i].querySelectorAll('td');
+    for (var j=0; j<cols.length; j++) {
+      console.log(cols[j].innerText);
+    }
+  }
+}
+
+
 casper.start('http://nid.usace.army.mil/', function() {
   // Wait for the page to be loaded
   this.waitForSelector('#wwvFlowForm');
@@ -33,16 +46,32 @@ casper.thenClick(x('//*[@id="apexir_ACTIONSMENU"]/li[3]/a'), function() {
   });
 });
 
+
 casper.thenClick(x('//*[@id="apexir_btn_APPLY"]'));
 
 casper.wait(3000, function() {
   this.evaluate(function() {
-    gReport.search('SEARCH',100);
+    gReport.search('SEARCH',10);
   });
 });
 
+var data = [];
+
+
 casper.wait(3000, function() {
-    this.capture('image.png');
+  this.capture('image.png');
+  casper.evaluate(function() {
+    var rows = document.querySelectorAll('table.apexir_WORKSHEET_DATA tr');
+    data.push[rows];
+    console.log(rows.length);
+    for (var i = 0; i<rows.length; i++) {
+      var cols = rows[i].querySelectorAll('td');
+      for (var j=0; j<cols.length; j++) {
+        console.log(cols[j].innerText);
+      }
+    }
+  });
+  console.log(data);
 });
 
 
