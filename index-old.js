@@ -15,19 +15,22 @@ function getLinks() {
         return e.getAttribute('href');
     });
 }
-
-function scrapeTable(tableSelector) {
-  var rows = [];
-  var tableRows = document.querySelectorAll(tableSelector + ' tr');
-  for (var i = 0; i<tableRows.length; i++) {
-    var tableCols = tableRows[i].querySelectorAll('td, th');
-    var cols = [];
-    for (var j=0; j<tableCols.length; j++) {
-      cols.push(tableCols[j].innerText.trim());
+//scrapeTable.toString().replace('__replaceme__', '"table.apexir_WORKSHEET_DATA"')
+function scrapeTable(selector) {
+  var a = function () {
+    var rows = [];
+    var tableRows = document.querySelectorAll(__replaceme__ + ' tr');
+    for (var i = 0; i<tableRows.length; i++) {
+      var tableCols = tableRows[i].querySelectorAll('td, th');
+      var cols = [];
+      for (var j=0; j<tableCols.length; j++) {
+        cols.push(tableCols[j].innerText);
+      }
+      rows.push(cols);
     }
-    rows.push(cols);
-  }
-  return rows;
+    return rows;
+  };
+  return a.toString().replace('__replaceme__', JSON.stringify(selector));
 }
 
 function arrayToCSV(arr) {
@@ -85,28 +88,16 @@ casper.wait(3000, function() {
 
 var data = [];
 casper.then(function() {
-  data = this.evaluate(function() {
-    var rows = [];
-    var tableRows = document.querySelectorAll('table.apexir_WORKSHEET_DATA tr');
-    for (var i = 0; i<tableRows.length; i++) {
-      var tableCols = tableRows[i].querySelectorAll('td, th');
-      var cols = [];
-      for (var j=0; j<tableCols.length; j++) {
-        cols.push(tableCols[j].innerText);
-      }
-      rows.push(cols);
-    }
-    console.log(rows);
-    this.echo(JSON.stringify(rows));
-    console.log(this);
-    return rows;
-  });
+  data = this.evaluate(scrapeTable("table.apexir_WORKSHEET_DATA"));
+});
+
+casper.then(function() {
+  console.log(data);
+  var csv = arrayToCSV(data);
+  writeToFile('ri.csv', csv);
 });
 
 casper.run(function() {
-  var csv = arrayToCSV(data);
-//  console.log(csv);
-  writeToFile('ri.csv', csv);
 });
 
 // casper.then(function() {
