@@ -1,4 +1,7 @@
 var fs = require('fs');
+var recordCount;
+var data = [];
+var links = [];
 
 var casper = require('casper').create({
   verbose: true,
@@ -7,33 +10,71 @@ var casper = require('casper').create({
 
 var x = require('casper').selectXPath;
 
-var links = [];
-
 function getLinks() {
     var links = document.querySelectorAll('h3.r a');
     return Array.prototype.map.call(links, function(e) {
         return e.getAttribute('href');
     });
 }
+function scrapeTable(selector) {
+  var innerFunc = function () {
 
-function scrapeTable(tableSelector) {
-  var rows = [];
-  var tableRows = document.querySelectorAll(tableSelector + ' tr');
-  for (var i = 0; i<tableRows.length; i++) {
-    var tableCols = tableRows[i].querySelectorAll('td, th');
-    var cols = [];
-    for (var j=0; j<tableCols.length; j++) {
-      cols.push(tableCols[j].innerText.trim());
+    function extractLatLon(str) {
+      var regex = /:\\([\d-.]+),([\d-.]+)/;
+      if ((m = regex.exec(str)) !== null) {
+        return {
+          lat: (m[1]).toString(),
+          lon: (m[2]).toString()
+        };
+      }
+      return {
+        lat: "none",
+        lon: "none"
+      };
     }
-    rows.push(cols);
-  }
-  return rows;
+
+    function hasLink(node) {
+      var href = node.querySelector('a');
+      return (href !== null && href.getAttribute('href') !== "#");
+    }
+
+    function getHref(node) {
+      return node.querySelector('a').getAttribute('href');
+    }
+
+    var rows = [];
+    var tableRows = document.querySelectorAll(__replaceme__ + ' tr');
+    for (var i = 0; i<tableRows.length; i++) {
+      var tableCols = tableRows[i].querySelectorAll('td, th');
+      var cols = [];
+      for (var j=0; j<tableCols.length; j++) {
+        var cell = tableCols[j];
+        if (hasLink(cell)) {
+          var href = getHref(cell);
+          var coords = extractLatLon(href);
+          cols.push(coords.lat,coords.lon);
+        }
+        else {
+          cols.push(cell.innerText);
+        }
+      }
+      rows.push(cols);
+    }
+    return rows;
+  };
+  return innerFunc.toString().replace('__replaceme__', JSON.stringify(selector));
 }
 
 function arrayToCSV(arr) {
+  console.log(JSON.stringify(arr));
   var rows = [];
   arr.forEach(function(row) {
-    rows.push(row.map(function(elem) { return '"' + elem.trim() + '"' }).join());
+    rows.push(row.map(function(elem) {
+      if (elem === undefined) {
+        console.log("elem undefined");
+      }
+
+     return JSON.stringify(elem.trim()) }).join());
   });
   return rows.join('\n');
 }
@@ -45,6 +86,20 @@ function writeToFile(filename, data) {
     }
     return("The file was saved!");
   });
+}
+
+function extractRecordCount(str) {
+  // 1 - 25 of 10000
+  var regex = /^(\d+)[\s-]+(\d+)[\sof]+(\d+)$/;
+  var matches = str.trim().match(regex);
+  if (matches.length > 3) {
+    return {
+      start: parseInt(matches[1]),
+      end: parseInt(matches[2]),
+      total: parseInt(matches[3])
+    }
+  }
+  return {};
 }
 
 casper.start('http://nid.usace.army.mil/', function() {
@@ -73,64 +128,24 @@ casper.thenClick(x('//*[@id="apexir_ACTIONSMENU"]/li[3]/a'), function() {
 
 casper.thenClick(x('//*[@id="apexir_btn_APPLY"]'));
 
+
 casper.wait(3000, function() {
-  this.evaluate(function() {
-    gReport.search('SEARCH',10);
+  recordCount = this.evaluate(function() {
+    gReport.search('SEARCH',1000);
+    return document.querySelectorAll('span.fielddata')[2].innerText;
   });
 });
 
-casper.wait(3000, function() {
+casper.wait(5000, function() {
+  data = this.evaluate(scrapeTable("table.apexir_WORKSHEET_DATA"));
   this.capture('image.png');
 });
 
-var data = [];
 casper.then(function() {
-  data = this.evaluate(function() {
-    var rows = [];
-    var tableRows = document.querySelectorAll('table.apexir_WORKSHEET_DATA tr');
-    for (var i = 0; i<tableRows.length; i++) {
-      var tableCols = tableRows[i].querySelectorAll('td, th');
-      var cols = [];
-      for (var j=0; j<tableCols.length; j++) {
-        cols.push(tableCols[j].innerText);
-      }
-      rows.push(cols);
-    }
-    console.log(rows);
-    this.echo(JSON.stringify(rows));
-    console.log(this);
-    return rows;
-  });
-});
-
-casper.run(function() {
   var csv = arrayToCSV(data);
-//  console.log(csv);
   writeToFile('ri.csv', csv);
 });
 
-// casper.then(function() {
-//    // search for 'casperjs' from google form
-//    this.fill('form[action="/search"]', { q: 'casperjs' }, true);
-// });
+casper.run(function() {
+});
 
-
-
-
-// casper.then(function() {
-//     // aggregate results for the 'casperjs' search
-//     links = this.evaluate(getLinks);
-//     // now search for 'phantomjs' by filling the form again
-//     this.fill('form[action="/search"]', { q: 'phantomjs' }, true);
-// });
-
-// casper.then(function() {
-//     // aggregate results for the 'phantomjs' search
-//     links = links.concat(this.evaluate(getLinks));
-// });
-
-// casper.run(function() {
-//     // echo results in some pretty fashion
-//     this.echo(links.length + ' links found:');
-//     this.echo(' - ' + links.join('\n - ')).exit();
-// });
