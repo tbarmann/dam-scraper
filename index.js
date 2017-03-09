@@ -3,6 +3,9 @@ var recordCount;
 var data = [];
 var links = [];
 
+var state = "MA";
+var count = 1500;
+
 var casper = require('casper').create({
   verbose: true,
   logLevel: "debug"
@@ -10,12 +13,6 @@ var casper = require('casper').create({
 
 var x = require('casper').selectXPath;
 
-function getLinks() {
-    var links = document.querySelectorAll('h3.r a');
-    return Array.prototype.map.call(links, function(e) {
-        return e.getAttribute('href');
-    });
-}
 function scrapeTable(selector) {
   var innerFunc = function () {
 
@@ -70,10 +67,6 @@ function arrayToCSV(arr) {
   var rows = [];
   arr.forEach(function(row) {
     rows.push(row.map(function(elem) {
-      if (elem === undefined) {
-        console.log("elem undefined");
-      }
-
      return JSON.stringify(elem.trim()) }).join());
   });
   return rows.join('\n');
@@ -117,11 +110,11 @@ casper.thenClick(x('//*[@id="apexir_ACTIONSMENUROOT"]'));
 
 casper.thenClick(x('//*[@id="apexir_ACTIONSMENU"]/li[3]/a'), function() {
   this.wait(1000, function() {
-    this.evaluate(function() {
+    this.evaluate(function(state) {
       document.querySelector('#apexir_COLUMN_NAME').value = 'STATE';
       document.querySelector('#apexir_STRING_OPT').value = '=';
-      document.querySelector('#apexir_EXPR').value = 'RI';
-    });
+      document.querySelector('#apexir_EXPR').value = state;
+    }, state);
   });
 });
 
@@ -130,10 +123,10 @@ casper.thenClick(x('//*[@id="apexir_btn_APPLY"]'));
 
 
 casper.wait(3000, function() {
-  recordCount = this.evaluate(function() {
-    gReport.search('SEARCH',1000);
+  recordCount = this.evaluate(function(count) {
+    gReport.search('SEARCH',count);
     return document.querySelectorAll('span.fielddata')[2].innerText;
-  });
+  }, count);
 });
 
 casper.wait(5000, function() {
@@ -143,7 +136,7 @@ casper.wait(5000, function() {
 
 casper.then(function() {
   var csv = arrayToCSV(data);
-  writeToFile('ri.csv', csv);
+  writeToFile(state + '.csv', csv);
 });
 
 casper.run(function() {
